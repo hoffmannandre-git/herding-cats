@@ -661,6 +661,30 @@ stricter as models improve. We do **not** claim hallucination
 tolerance — this harness measures grounding with a deterministic
 classifier (no LLM judge).
 
+## QA catalogue (eval / report)
+
+Separate from the grounding classifier: a YAML question catalogue
+graded **facts-first** (substring hits vs `min_fact_hits`), with an
+optional **Ollama LLM judge** when facts miss. Markdown report under
+`tests/reports/`. Still **not** a claim of hallucination tolerance.
+
+```bash
+# Fast: loader + judge unit tests (in the normal suite)
+docker compose --profile test run --rm test
+
+# Full report against a live Ollama-backed crew (host)
+py tests/run_qa_report.py
+py tests/run_qa_report.py --llm-judge   # or HERDING_CATS_QA_LLM_JUDGE=1
+```
+
+| Env | Default | Purpose |
+|---|---|---|
+| `HERDING_CATS_QA_LLM_JUDGE` | off | Enable LLM fallback for non-trivial rows |
+| `HERDING_CATS_JUDGE_MODEL` | `HERDING_CATS_MODEL` / `llama3.1:8b` | Judge model |
+
+Catalogue: `tests/question_catalogue.yaml`. Slow pytest twins:
+`test_qa_catalogue_smoke_trivial` / `test_qa_catalogue_full_report`.
+
 ## HTTP server
 
 With the `api` profile the server is already running on port `18000`.

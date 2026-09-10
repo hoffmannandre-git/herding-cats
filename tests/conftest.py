@@ -12,8 +12,10 @@ import pytest
 
 ROOT = Path(__file__).resolve().parent.parent
 SRC = ROOT / "src"
-if str(SRC) not in sys.path:
-    sys.path.insert(0, str(SRC))
+TESTS = Path(__file__).resolve().parent
+for _p in (SRC, TESTS):
+    if str(_p) not in sys.path:
+        sys.path.insert(0, str(_p))
 
 OLLAMA_URL = os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434")
 
