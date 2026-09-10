@@ -221,25 +221,27 @@ class OllamaClient:
         if not req.stream:
             req = req.model_copy(update={"stream": True})
         body = req.model_dump(exclude_none=True)
-        async with httpx.AsyncClient(timeout=self.timeout_s) as client:
-            async with client.stream("POST", f"{self.base_url}/api/chat", json=body) as r:
-                if r.status_code != 200:
-                    raise OllamaError(f"Ollama /api/chat {r.status_code}: {r.text[:500]}")
-                async for line in r.aiter_lines():
-                    if not line:
-                        continue
-                    try:
-                        import json as _json
+        async with (
+            httpx.AsyncClient(timeout=self.timeout_s) as client,
+            client.stream("POST", f"{self.base_url}/api/chat", json=body) as r,
+        ):
+            if r.status_code != 200:
+                raise OllamaError(f"Ollama /api/chat {r.status_code}: {r.text[:500]}")
+            async for line in r.aiter_lines():
+                if not line:
+                    continue
+                try:
+                    import json as _json
 
-                        chunk = _json.loads(line)
-                    except Exception as exc:  # pragma: no cover
-                        raise OllamaError(f"Bad stream chunk: {line!r}") from exc
-                    msg = chunk.get("message") or {}
-                    delta = msg.get("content") or ""
-                    if delta:
-                        yield delta
-                    if chunk.get("done"):
-                        return
+                    chunk = _json.loads(line)
+                except Exception as exc:  # pragma: no cover
+                    raise OllamaError(f"Bad stream chunk: {line!r}") from exc
+                msg = chunk.get("message") or {}
+                delta = msg.get("content") or ""
+                if delta:
+                    yield delta
+                if chunk.get("done"):
+                    return
 
     # ----- Embeddings --------------------------------------------------------
 
