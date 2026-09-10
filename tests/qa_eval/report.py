@@ -35,8 +35,8 @@ def write_report(
         f"Passed: **{result.passed_count}** / {len(result.rows)}  "
         f"(failed: {result.failed_count})",
         "",
-        "| id | retrieval | ok | hits | time_s | reason |",
-        "|---|---|---|---|---|---|",
+        "| id | retrieval | ok | mode | hits | time_s | reason |",
+        "|---|---|---|---|---|---|---|",
     ]
     timing: list[dict] = []
     for row in result.rows:
@@ -46,7 +46,7 @@ def write_report(
         hits = f"{len(j.facts_hit)}/{q.min_fact_hits}"
         reason = j.reason.replace("|", "\\|")
         lines.append(
-            f"| `{q.id}` | {q.retrieval} | {ok} | {hits} | "
+            f"| `{q.id}` | {q.retrieval} | {ok} | {j.mode} | {hits} | "
             f"{row.elapsed_s:.2f} | {reason} |"
         )
         timing.append(
@@ -54,6 +54,7 @@ def write_report(
                 "id": q.id,
                 "retrieval": q.retrieval,
                 "passed": j.passed,
+                "mode": j.mode,
                 "facts_hit": list(j.facts_hit),
                 "min_fact_hits": q.min_fact_hits,
                 "elapsed_s": round(row.elapsed_s, 3),

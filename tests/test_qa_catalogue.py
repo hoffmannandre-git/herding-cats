@@ -55,15 +55,83 @@ def test_count_facts_normalizes_comma_decimal() -> None:
     assert hits == ["$6.99"]
 
 
-def test_llm_fallback_not_implemented() -> None:
-    with pytest.raises(NotImplementedError):
-        judge_answer(
-            question="q",
-            answer="no facts here",
-            expected_facts=["macropad"],
-            min_fact_hits=1,
-            use_llm_fallback=True,
-        )
+def test_llm_fallback_pass_with_stub() -> None:
+    class _Stub:
+        def health(self) -> bool:
+            return True
+
+        def chat(self, req):
+            from herding_cats.ollama import ChatMessage, ChatResponse
+
+            return ChatResponse(
+                model=req.model,
+                message=ChatMessage(
+                    role="assistant",
+                    content='{"answered": true, "reason": "covers macropad clearly"}',
+                ),
+                done=True,
+            )
+
+    result = judge_answer(
+        question="What is Cobble?",
+        answer="It is a compact keyboard accessory.",
+        expected_facts=["macropad", "12-key"],
+        min_fact_hits=2,
+        use_llm_fallback=True,
+        ollama=_Stub(),
+    )
+    assert result.passed
+    assert result.mode == "llm-judge"
+    assert "covers macropad" in result.reason
+
+
+def test_llm_fallback_fail_with_stub() -> None:
+    class _Stub:
+        def health(self) -> bool:
+            return True
+
+        def chat(self, req):
+            from herding_cats.ollama import ChatMessage, ChatResponse
+
+            return ChatResponse(
+                model=req.model,
+                message=ChatMessage(
+                    role="assistant",
+                    content='{"answered": false, "reason": "no concrete facts"}',
+                ),
+                done=True,
+            )
+
+    result = judge_answer(
+        question="What is Cobble?",
+        answer="Something vague.",
+        expected_facts=["macropad"],
+        min_fact_hits=1,
+        use_llm_fallback=True,
+        ollama=_Stub(),
+    )
+    assert not result.passed
+    assert result.mode == "llm-judge"
+
+
+def test_llm_fallback_unreachable() -> None:
+    class _Down:
+        def health(self) -> bool:
+            return False
+
+        def chat(self, req):
+            raise AssertionError("chat should not be called")
+
+    result = judge_answer(
+        question="q",
+        answer="no facts",
+        expected_facts=["macropad"],
+        min_fact_hits=1,
+        use_llm_fallback=True,
+        ollama=_Down(),
+    )
+    assert not result.passed
+    assert "unreachable" in result.reason
 
 
 def test_run_catalogue_with_stub_ask(tmp_path: Path) -> None:
@@ -116,7 +184,7 @@ def test_qa_catalogue_smoke_trivial(tmp_path: Path) -> None:
 
 @pytest.mark.slow
 def test_qa_catalogue_full_report(tmp_path: Path) -> None:
-    """Full catalogue against live Ollama; writes a report under tmp_path."""
+    """Full catalogue against live Ollama; LLM judge on fact misses."""
     from herding_cats import Crew, CrewRunner
     from herding_cats.tools_filesystem import filesystem_tools
 
@@ -127,10 +195,17 @@ def test_qa_catalogue_full_report(tmp_path: Path) -> None:
     ollama = _real_ollama_or_skip()
     crew = Crew(ollama=ollama, tool_specs=filesystem_tools(root=data))
     runner = CrewRunner(crew)
+    use_llm = os.environ.get("HERDING_CATS_QA_LLM_JUDGE", "1").strip().lower() not in {
+        "0",
+        "false",
+        "no",
+        "off",
+    }
     result = run_catalogue(
         ask=runner.run,
         catalogue_path=CATALOGUE,
-        use_llm_fallback=False,
+        use_llm_fallback=use_llm,
+        ollama=ollama,
     )
     md, _js = write_report(result, report_dir=tmp_path)
     assert md.exists()

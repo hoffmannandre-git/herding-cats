@@ -78,11 +78,17 @@ def run_catalogue(
     catalogue_path: Path | None = None,
     use_llm_fallback: bool = False,
     retrieval_filter: set[str] | None = None,
+    ollama: Any | None = None,
+    judge_model: str | None = None,
 ) -> CatalogueRunResult:
     """Ask each catalogue question and facts-first judge the answers.
 
     ``ask`` is typically ``CrewRunner(crew).run``. HTTP adapters can
     wrap ``/crew/run`` the same way later.
+
+    When ``use_llm_fallback`` is True, non-trivial rows that miss the
+    fact bar are re-graded by an Ollama JSON judge (``ollama`` client
+    optional; a default ``OllamaClient`` is created if omitted).
     """
     qs = questions if questions is not None else load_catalogue(catalogue_path)
     if retrieval_filter is not None:
@@ -93,7 +99,7 @@ def run_catalogue(
         t0 = time.perf_counter()
         answer = ask(q.question)
         elapsed = time.perf_counter() - t0
-        # Trivial rows stay facts-only even if a future LLM fallback exists.
+        # Trivial rows stay facts-only even when LLM fallback is enabled.
         llm = use_llm_fallback and q.retrieval != "trivial"
         judge = judge_answer(
             question=q.question,
@@ -101,6 +107,8 @@ def run_catalogue(
             expected_facts=q.expected_facts,
             min_fact_hits=q.min_fact_hits,
             use_llm_fallback=llm,
+            ollama=ollama,
+            judge_model=judge_model,
         )
         out.rows.append(
             CatalogueRowResult(question=q, answer=answer or "", elapsed_s=elapsed, judge=judge)

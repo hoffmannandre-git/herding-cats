@@ -207,7 +207,12 @@ class OllamaClient:
         if req.stream:
             raise OllamaError("Use achat_stream() for streaming requests.")
         body = req.model_dump(exclude_none=True)
-        r = await self._async_client.post(f"{self.base_url}/api/chat", json=body)
+        # Fresh client per call so we bind to the *current* event loop.
+        # Reusing ``_async_client`` across ``asyncio.run()`` (or across a
+        # closed Proactor loop on Windows) raises
+        # ``RuntimeError: Event loop is closed`` during response cleanup.
+        async with httpx.AsyncClient(timeout=self.timeout_s) as client:
+            r = await client.post(f"{self.base_url}/api/chat", json=body)
         if r.status_code != 200:
             raise OllamaError(f"Ollama /api/chat {r.status_code}: {r.text[:500]}")
         return ChatResponse.from_ollama(r.json())
@@ -216,26 +221,25 @@ class OllamaClient:
         if not req.stream:
             req = req.model_copy(update={"stream": True})
         body = req.model_dump(exclude_none=True)
-        async with self._async_client.stream(
-            "POST", f"{self.base_url}/api/chat", json=body
-        ) as r:
-            if r.status_code != 200:
-                raise OllamaError(f"Ollama /api/chat {r.status_code}: {r.text[:500]}")
-            async for line in r.aiter_lines():
-                if not line:
-                    continue
-                try:
-                    import json as _json
+        async with httpx.AsyncClient(timeout=self.timeout_s) as client:
+            async with client.stream("POST", f"{self.base_url}/api/chat", json=body) as r:
+                if r.status_code != 200:
+                    raise OllamaError(f"Ollama /api/chat {r.status_code}: {r.text[:500]}")
+                async for line in r.aiter_lines():
+                    if not line:
+                        continue
+                    try:
+                        import json as _json
 
-                    chunk = _json.loads(line)
-                except Exception as exc:  # pragma: no cover
-                    raise OllamaError(f"Bad stream chunk: {line!r}") from exc
-                msg = chunk.get("message") or {}
-                delta = msg.get("content") or ""
-                if delta:
-                    yield delta
-                if chunk.get("done"):
-                    return
+                        chunk = _json.loads(line)
+                    except Exception as exc:  # pragma: no cover
+                        raise OllamaError(f"Bad stream chunk: {line!r}") from exc
+                    msg = chunk.get("message") or {}
+                    delta = msg.get("content") or ""
+                    if delta:
+                        yield delta
+                    if chunk.get("done"):
+                        return
 
     # ----- Embeddings --------------------------------------------------------
 
@@ -245,9 +249,10 @@ class OllamaClient:
         return EmbeddingResponse.from_ollama(r.json())
 
     async def aembed(self, req: EmbeddingRequest) -> EmbeddingResponse:
-        r = await self._async_client.post(
-            f"{self.base_url}/api/embeddings", json=req.model_dump()
-        )
+        async with httpx.AsyncClient(timeout=self.timeout_s) as client:
+            r = await client.post(
+                f"{self.base_url}/api/embeddings", json=req.model_dump()
+            )
         r.raise_for_status()
         return EmbeddingResponse.from_ollama(r.json())
 
