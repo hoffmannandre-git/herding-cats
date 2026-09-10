@@ -1,0 +1,79 @@
+# QA catalogue for herding-cats eval / report runs.
+# Graded facts-first (substring hits vs min_fact_hits). Optional LLM judge
+# is wired later — do not frame results as "hallucination tolerance".
+#
+# Sources point at fictional briefs under data/ (same mount as Docker).
+
+questions:
+  - id: smoke_cobble_name
+    retrieval: trivial
+    sources: [cobble.md]
+    question: "What is the product called Cobble in one short sentence?"
+    expected_facts:
+      - "Cobble"
+      - "macropad"
+    min_fact_hits: 1
+
+  - id: cobble_vs_stream_deck
+    retrieval: direct
+    sources: [cobble.md]
+    question: "What is Cobble and how is it different from a Stream Deck?"
+    expected_facts:
+      - "macropad"
+      - "12-key"
+      - "e-ink"
+      - "$89"
+      - "Rust"
+    min_fact_hits: 2
+
+  - id: porthound_license
+    retrieval: direct
+    sources: [porthound.md]
+    question: "Is Porthound a hosted SaaS product, and how is it licensed?"
+    expected_facts:
+      - "BSD"
+      - "open-source"
+      - "Zig"
+      - "single binary"
+    min_fact_hits: 2
+
+  - id: sleepwell_maker_price
+    retrieval: direct
+    sources: [sleepwell.md]
+    question: "Who makes Sleepwell and how much does it cost?"
+    expected_facts:
+      - "$6.99"
+      - "Lisbon"
+      - "bedtime story"
+    min_fact_hits: 2
+
+  - id: manuscriptr_editor
+    retrieval: direct
+    sources: [manuscriptr.md]
+    question: "Does Manuscriptr replace my text editor?"
+    expected_facts:
+      - "version-control"
+      - "read-only"
+      - "novelists"
+      - "$49"
+    min_fact_hits: 2
+
+  - id: astrolabe_planetarium
+    retrieval: direct
+    sources: [astrolabe.md]
+    question: "Is Astrolabe a planetarium app and what does it cost?"
+    expected_facts:
+      - "$1.99"
+      - "Belgrade"
+      - "offline"
+      - "star map"
+    min_fact_hits: 2
+
+  - id: cobble_workshop
+    retrieval: implied
+    sources: [cobble.md]
+    question: "Where does Cobble ship from, and is the firmware open source?"
+    expected_facts:
+      - "Tallinn"
+      - "closed-source"
+    min_fact_hits: 1

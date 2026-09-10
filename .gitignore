@@ -38,3 +38,6 @@ out/
 openapi.json
 de-test.txt
 HANDOVER.md
+
+# QA catalogue eval reports (generated)
+tests/reports/
