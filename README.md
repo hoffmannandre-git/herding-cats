@@ -18,29 +18,29 @@ A small, opinionated Python runtime for **multi-agent LLM crews backed by a loca
 ## Architecture
 
 ```
-            ┌───────────────┐
-            │   user query  │
-            └───────┬───────┘
-                    ▼
-        ┌───────────────────────┐
-        │     ORCHESTRATOR      │  ← routes: think | fetch | final | stop
-        └─────┬─────┬─────┬─────┘
-              │     │     │
-        ┌─────▼┐ ┌──▼──┐ ┌▼──────┐
-        │THINK │ │FETCH│ │FINAL  │   ← each role: one prompt, one JSON contract
-        │      │ │     │ │       │
-        └────┬─┘ └──┬──┘ └───┬───┘
-             │      │        │
-             │      ▼        │
-             │   ┌──────┐    │
-             │   │EXEC  │    │     ← deterministic tool runner, no LLM
-             │   └──┬───┘    │
-             │      │        │
-             └──────┴────────┘
-                    ▼
-            ┌───────────────┐
-            │    answer     │
-            └───────────────┘
+                       ┌─────────────┐
+                       │  user query │
+                       └──────┬──────┘
+                              ▼
+           ┌─────────────────────────────────────┐
+           │            ORCHESTRATOR             │  ← routes: think | fetch | final | stop
+           └──────┬───────────┬───────────┬──────┘
+                  │           │           │
+                  ▼           ▼           ▼
+              ┌───────┐   ┌───────┐   ┌───────┐
+              │ THINK │   │ FETCH │   │ FINAL │  ← one prompt, one JSON contract
+              └───┬───┘   └───┬───┘   └───┬───┘
+                  │           │           │
+                  │           ▼           │
+                  │       ┌───────┐       │
+                  │       │  EXEC │       │  ← deterministic tool runner, no LLM
+                  │       └───┬───┘       │
+                  │           │           │
+                  └───────────┴───────────┘
+                              ▼
+                       ┌─────────────┐
+                       │   answer    │
+                       └─────────────┘
 ```
 
 The orchestrator is told a budget one round lower than the real cap (the
@@ -49,7 +49,7 @@ The orchestrator is told a budget one round lower than the real cap (the
 ## Quick start (Docker)
 
 ```bash
-git clone https://github.com/yourname/herding-cats
+git clone https://github.com/hoffmannandre-git/herding-cats.git
 cd herding-cats
 cp .env.example .env          # optional: model name, pipeline mode
 
