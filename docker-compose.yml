@@ -1,0 +1,127 @@
+services:
+  ollama:
+    image: ollama/ollama:latest
+    container_name: herding-cats-ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama-data:/root/.ollama
+      # Data mount for the filesystem tools (ls, cat).
+      # The `./data` directory on the host is exposed inside the
+      # container at `/data`. The `ls` and `cat` tools are bound to
+      # this path via the `HERDING_CATS_DATA_DIR` env var (default:
+      # `/data` inside the container, `./data` when running locally).
+      - ./data:/data
+    environment:
+      # Tell the filesystem tools where their safe root is. When you
+      # run the examples on the host (not in Docker), this falls back
+      # to `./data` next to your cwd.
+      HERDING_CATS_DATA_DIR: /data
+    # Uncomment for GPU acceleration (NVIDIA Container Toolkit required).
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - capabilities: [gpu]
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  pull-model:
+    image: curlimages/curl:latest
+    depends_on:
+      ollama:
+        condition: service_healthy
+    entrypoint: ["sh", "-c"]
+    command:
+      - |
+        echo "Pulling model: $${HERDING_CATS_MODEL:-llama3.1:8b}"
+        until curl -fsS http://ollama:11434/api/tags >/dev/null 2>&1; do
+          sleep 1
+        done
+        curl -fsS -X POST http://ollama:11434/api/pull \
+          -d "{\"name\":\"$${HERDING_CATS_MODEL:-llama3.1:8b}\",\"stream\":false}" \
+          -o /dev/null
+        echo "Done."
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: herding-cats:latest
+    container_name: herding-cats-api
+    profiles: ["api", "all"]   # opt-in: `docker compose --profile api up`
+    depends_on:
+      ollama:
+        condition: service_healthy
+      pull-model:
+        condition: service_completed_successfully
+    environment:
+      HERDING_CATS_OLLAMA_URL: http://ollama:11434
+      HERDING_CATS_MODEL: ${HERDING_CATS_MODEL:-llama3.1:8b}
+      HERDING_CATS_HOST: 0.0.0.0
+      HERDING_CATS_PORT: "18000"
+      HERDING_CATS_DATA_DIR: /data
+    ports:
+      - "18000:18000"
+    volumes:
+      # The API's filesystem tools share the host `./data` directory
+      # with the Ollama container — same safe root.
+      - ./data:/data:ro
+    restart: unless-stopped
+
+  test:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: herding-cats:latest
+    container_name: herding-cats-test
+    profiles: ["test", "all"]
+    depends_on:
+      ollama:
+        condition: service_healthy
+      pull-model:
+        condition: service_completed_successfully
+    environment:
+      HERDING_CATS_OLLAMA_URL: http://ollama:11434
+      HERDING_CATS_MODEL: ${HERDING_CATS_MODEL:-llama3.1:8b}
+      HERDING_CATS_DATA_DIR: /data
+      # Run the full test pipeline on container start, then exit 0/1.
+      # `set -e` makes the container exit non-zero on any test failure,
+      # so `docker compose run --profile test test` propagates correctly.
+      PIPELINE_MODE: ${HERDING_CATS_PIPELINE_MODE:-fast}
+      GROUNDING_THRESHOLD: ${GROUNDING_THRESHOLD:-0.5}
+      # Bind-mounted source is at /workspace; add `src` to PYTHONPATH so
+      # `import herding_cats` works without an editable install.
+      PYTHONPATH: /workspace/src
+    volumes:
+      - .:/workspace:ro
+      # Mount the data directory read-only so the grounding tests
+      # can see the fictional briefs. Same path the API container uses.
+      - ./data:/data:ro
+    working_dir: /workspace
+    entrypoint: ["sh", "-c"]
+    # Default: fast suite. Set `HERDING_CATS_PIPELINE_MODE=all` to run
+    # every test (including the slow ones against the real model).
+    # Inside the container the interpreter is `python3`, not `py`.
+    command:
+      - |
+        set -e
+        echo "=== herding-cats test pipeline ==="
+        echo "mode: $${PIPELINE_MODE}"
+        # The source is mounted read-only, so disable ruff's on-disk cache.
+        python3 -m ruff check --no-cache .
+        echo
+        if [ "$${PIPELINE_MODE}" = "all" ]; then
+          python3 -m pytest -v -m "not slow"
+          python3 -m pytest -v -m slow
+        else
+          python3 -m pytest -v -m "not slow"
+        fi
+        echo
+        echo "=== pipeline complete ==="
+
+volumes:
+  ollama-data:

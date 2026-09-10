@@ -1,0 +1,27 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install package (test extras)
+        run: pip install -e ".[test]"
+
+      - name: Ruff
+        run: ruff check .
+
+      - name: Prompt isolation
+        run: python scripts/check_prompts_isolated.py
+
+      - name: Pytest (fast)
+        run: pytest -q -m "not slow"

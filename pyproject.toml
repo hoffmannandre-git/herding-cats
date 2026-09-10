@@ -1,0 +1,83 @@
+[build-system]
+requires = ["hatchling>=1.18"]
+build-backend = "hatchling.build"
+
+[project]
+name = "herding-cats"
+version = "0.3.0"
+description = "Multi-agent LLM crew runtime backed by a local Ollama instance. (Like herding cats.)"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "herding-cats authors" }]
+keywords = ["ollama", "llm", "agents", "crew", "rag", "local", "multi-agent"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = [
+    "httpx>=0.27",
+    "pydantic>=2.6",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+    "respx>=0.21",
+    "ruff>=0.4",
+]
+server = [
+    "fastapi>=0.110",
+    "uvicorn[standard]>=0.27",
+]
+test = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+    "respx>=0.21",
+    "ruff>=0.4",
+    "fastapi>=0.110",
+    "uvicorn[standard]>=0.27",
+]
+
+[project.urls]
+Homepage = "https://github.com/yourname/herding-cats"
+Issues = "https://github.com/yourname/herding-cats/issues"
+
+[project.scripts]
+herding-cats = "herding_cats.__main__:main"
+herding-cats-api = "herding_cats.__main__:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/herding_cats"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM", "RUF"]
+
+[tool.ruff.lint.per-file-ignores]
+# Pydantic models in server.py are unpacked and used as FastAPI route
+# type hints, which ruff's RUF059 can't see through the function-scoped
+# unpacking.
+"src/herding_cats/server.py" = ["RUF059"]
+# test_grounding.py uses unicode dashes (HYPHEN, FIGURE DASH, EN DASH,
+# EM DASH, HORIZONTAL BAR) intentionally to accept any of them as a
+# word separator in regex character classes. Ruff's RUF001 flags every
+# ambiguous glyph, which is noise here.
+"tests/test_grounding.py" = ["RUF001"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+markers = [
+    "slow: end-to-end tests that hit a real Ollama instance",
+]
