@@ -63,6 +63,31 @@ def test_calculator_rejects_function_calls() -> None:
     assert "not allowed" in out.error
 
 
+def test_calculator_rejects_dunder_attribute_chain() -> None:
+    """Classic eval sandbox escape via attribute chains must not parse."""
+    out = calculator(CalcInput(expression="().__class__.__bases__[0].__subclasses__()"))
+    assert out.error is not None
+    assert "not allowed" in out.error
+
+
+def test_calculator_rejects_getattr_and_subscript() -> None:
+    out = calculator(CalcInput(expression="getattr(math, 'sqrt')(16)"))
+    assert out.error is not None
+    out2 = calculator(CalcInput(expression="[1, 2][0]"))
+    assert out2.error is not None
+
+
+def test_calculator_allows_unary_and_constants() -> None:
+    out = calculator(CalcInput(expression="-pi + e"))
+    assert out.error is None
+    assert isinstance(out.value, float)
+
+
+def test_calculator_sum_list() -> None:
+    out = calculator(CalcInput(expression="sum([1, 2, 3])"))
+    assert out.value == 6
+
+
 def test_calculator_rejects_empty() -> None:
     out = calculator(CalcInput(expression=""))
     assert out.error == "empty expression"
