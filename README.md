@@ -555,7 +555,7 @@ Five ready-to-use tools with pydantic schemas ship in
 |---|---|
 | `get_current_time` | Wall-clock in a timezone |
 | `date_now` | Today's ISO date + weekday |
-| `calculator` | Sandboxed arithmetic (math + abs/round/min/max) |
+| `calculator` | AST-whitelisted arithmetic (no `eval`; math + abs/round/min/max) |
 | `echo` | Repeat text N times |
 | `web_search` | **Stub** — returns empty + a "replace me" note |
 
