@@ -781,19 +781,116 @@ The script prints wall times and a short grounding note using the same
 claim lists as `tests/test_grounding.py` (string classifier, not an LLM
 judge). Treat it as a worksheet, not a leaderboard.
 
+## MCP tools (consume any MCP server)
+
+`herding-cats` can drive any [Model Context Protocol](https://modelcontextprotocol.io)
+server as a tool source. Each MCP tool is wrapped as a `ToolSpec`; the
+fetcher sees it next to the built-in tools and calls it through
+`Executor.arun()` exactly like a local Python tool.
+
+Install with the `mcp` extra:
+
+```bash
+pip install herding-cats[mcp]
+```
+
+### Quickstart
+
+```python
+import asyncio
+from pathlib import Path
+
+from herding_cats import Crew, CrewRunner, OllamaClient
+from herding_cats.mcp import McpServerSpec, crew_with_mcp
+
+
+async def main():
+    crew = Crew(ollama=OllamaClient())
+    async with crew_with_mcp(
+        crew,
+        servers=[McpServerSpec(
+            transport="stdio",
+            command="uvx",
+            args=["mcp-server-fetch"],
+            namespace="fetch",                      # optional: avoid collisions
+            overrides_path=Path("./mcp_tool_overrides.yaml"),  # optional
+        )],
+    ) as ctx:
+        answer = await CrewRunner(ctx.crew).arun(
+            "Fetch https://example.com and summarize it."
+        )
+    print(answer)
+
+
+asyncio.run(main())
+```
+
+### Transport matrix
+
+| Transport | When to use | Spec fields |
+|---|---|---|
+| `stdio` | Server is a local binary (most official MCP servers) | `command`, `args`, `env?` |
+| `sse` | Server runs in another container / on another host | `url`, `headers?` |
+
+### Overriding descriptions (and schemas)
+
+MCP servers ship their own descriptions. When those descriptions are
+thin ("Search the public web.") the small local model can struggle to
+pick the right tool. Drop a YAML file at the path you pass as
+`McpServerSpec.overrides_path`:
+
+```yaml
+defaults:
+  category: web
+
+tools:
+  fetch:
+    description: |
+      Use when the user asks to retrieve the raw contents of a web
+      page (HTML, markdown, plain text). Provide an absolute URL.
+      Do NOT use for search queries — use a search tool instead.
+```
+
+Keys may be either the un-prefixed MCP tool name (`fetch`) or the
+namespaced form (`fetch_fetch` if `namespace="fetch"`). Unknown keys
+emit a `WARNING` via the `herding_cats.mcp` logger and are silently
+skipped — see `apply_tool_overrides()` for the contract.
+
+### Docker
+
+```bash
+docker compose --profile mcp up -d
+# mcp-server-fetch exposed over SSE on port 8811; the `api` container
+# can reach it at http://mcp-fetch:8811 via McpServerSpec(transport="sse", url=...).
+```
+
+### What's NOT covered
+
+* **herding-cats as an MCP server.** Out of scope for this version.
+* **MCP `resources` and `prompts`.** Only MCP `tools` map cleanly onto
+  `ToolSpec`; the other primitives don't.
+* **Streamable HTTP transport.** Most public MCP servers ship stdio or
+  SSE; add when needed.
+
 ## Project layout
 
 ```
 herding-cats/
 ├── src/herding_cats/          # Python package (underscore)
+│   └── mcp.py                 # MCP client adapter + description overrides
 ├── data/                      # ls/cat root (Docker mount)
 ├── examples/
+│   ├── mcp_fetch_demo.py
+│   └── mcp_tool_overrides.yaml
 ├── tests/
+│   ├── test_mcp_adapter.py
+│   ├── test_mcp_overrides.py
+│   └── test_mcp_integration.py
 ├── scripts/
 │   ├── check_prompts_isolated.py
 │   └── benchmark_single_vs_crew.py
 ├── .github/workflows/ci.yml   # ruff + pytest (not slow)
-├── docker-compose.yml
+├── docker-compose.yml         # adds an `mcp` profile (supergateway + mcp-server-fetch)
 ├── Dockerfile
 ├── CONTRIBUTING.md
 ├── .env.example
