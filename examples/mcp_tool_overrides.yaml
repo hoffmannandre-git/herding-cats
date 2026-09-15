@@ -1,0 +1,27 @@
+# Description overrides for MCP-discovered tools.
+#
+# This file is loaded by `herding_cats.mcp.load_tool_overrides(...)`.
+# Keys are MCP tool names (after the optional `namespace` prefix is
+# stripped — see `McpServerSpec.namespace`). Unknown keys emit a
+# WARNING log under the `herding_cats.mcp` logger; they do not raise.
+#
+# Run with the example ``mcp_fetch_demo.py`` to see these replace the
+# bare descriptions that ``mcp-server-fetch`` advertises.
+
+defaults:
+  category: mcp
+
+tools:
+  fetch:
+    description: |
+      Use when the user asks to retrieve the raw contents of a web
+      page (HTML, markdown, plain text). Provide an absolute URL.
+      Do NOT use for search queries — use a search tool instead.
+      Returns the page body plus a marker showing how many characters
+      were truncated, if any.
+
+  fetch_html:
+    description: |
+      Same as `fetch` but preserves raw HTML. Use only when the user
+      specifically asks for HTML structure or needs to parse tags;
+      otherwise prefer `fetch`.

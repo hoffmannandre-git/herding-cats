@@ -29,6 +29,19 @@ from herding_cats.crew.orchestrator import (
 from herding_cats.crew.runner import Crew, CrewRunner, RunnerEvent, StepResult
 from herding_cats.crew.state import CrewState, NextAgent, TurnMemory
 from herding_cats.crew.tools import ToolCall, ToolRegistry, ToolResult, ToolSpec
+
+# Optional MCP integration. Importing succeeds even without the `mcp`
+# extra installed; the symbols are bound and raise on first use.
+from herding_cats.mcp import (
+    McpServerSpec,
+    ToolOverride,
+    apply_tool_overrides,
+    build_input_schema_from_json_schema,
+    connect_mcp_servers,
+    crew_with_mcp,
+    discover_tools,
+    load_tool_overrides,
+)
 from herding_cats.ollama import (
     ChatMessage,
     ChatRequest,
@@ -60,6 +73,7 @@ __all__ = [
     "Executor",
     "InMemorySession",
     "JsonFileSession",
+    "McpServerSpec",
     "NextAgent",
     "OllamaClient",
     "OllamaError",
@@ -69,15 +83,22 @@ __all__ = [
     "SessionStore",
     "StepResult",
     "ToolCall",
+    "ToolOverride",
     "ToolRegistry",
     "ToolResult",
     "ToolSpec",
     "TurnMemory",
     "TurnRecord",
+    "apply_tool_overrides",
+    "build_input_schema_from_json_schema",
     "compute_budget",
+    "connect_mcp_servers",
+    "crew_with_mcp",
     "decide_rules",
     "default_data_dir",
+    "discover_tools",
     "filesystem_tools",
+    "load_tool_overrides",
     "looks_like_smalltalk",
     "pipeline_status",
 ]
