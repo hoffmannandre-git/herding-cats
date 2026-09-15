@@ -123,5 +123,26 @@ services:
         echo
         echo "=== pipeline complete ==="
 
+  mcp-fetch:
+    # SSE wrapper around `mcp-server-fetch`. The MCP Python SDK
+    # speaks stdio by default; `supergateway` bridges that to HTTP+SSE
+    # so a separate container can host the server. The herding-cats
+    # API container connects to it via `McpServerSpec(transport="sse", url=...)`.
+    image: supercorp/supergateway:latest
+    container_name: herding-cats-mcp-fetch
+    profiles: ["mcp", "all"]
+    depends_on:
+      - ollama
+    command:
+      - --stdio
+      - "uvx mcp-server-fetch"
+      - --port
+      - "8811"
+      - --baseUrl
+      - "http://mcp-fetch:8811"
+    ports:
+      - "8811:8811"
+    restart: unless-stopped
+
 volumes:
   ollama-data:

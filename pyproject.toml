@@ -38,6 +38,11 @@ server = [
     "fastapi>=0.110",
     "uvicorn[standard]>=0.27",
 ]
+mcp = [
+    # Pinned to the v1.x maintenance line; v2 changes the public API.
+    # See https://github.com/modelcontextprotocol/python-sdk/tree/v1.x
+    "mcp>=1.0,<2.0",
+]
 test = [
     "pytest>=8.0",
     "pytest-asyncio>=0.23",
@@ -46,6 +51,7 @@ test = [
     "fastapi>=0.110",
     "uvicorn[standard]>=0.27",
     "PyYAML>=6.0",
+    "mcp>=1.0,<2.0",
 ]
 
 [project.urls]

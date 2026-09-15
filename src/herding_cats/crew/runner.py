@@ -91,6 +91,11 @@ class Crew:
     orchestrator_mode: Literal["rules", "llm"] = ORCHESTRATOR_MODE  # type: ignore[assignment]
     short_circuit_smalltalk: bool = True
     shortcuts: dict[str, Any] = field(default_factory=dict)
+    # MCP servers to connect to via `crew_with_mcp(...)`. Each entry is an
+    # `McpServerSpec` from `herding_cats.mcp`. Typed as `Any` to avoid an
+    # import cycle (mcp.py imports Crew). The `crew_with_mcp` helper
+    # reads this list and extends `tool_specs` on a copy of the Crew.
+    mcp_servers: list[Any] = field(default_factory=list)
 
     def registry(self) -> ToolRegistry:
         reg = ToolRegistry()
